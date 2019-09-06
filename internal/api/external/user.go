@@ -81,7 +81,7 @@ func (a *UserAPI) Create(ctx context.Context, req *pb.CreateUserRequest) (*pb.Cr
 		}
 
 		for _, org := range req.Organizations {
-			if err := storage.CreateOrganizationUser(tx, org.OrganizationId, userID, org.IsAdmin); err != nil {
+			if err := storage.CreateOrganizationUser(tx, org.OrganizationId, userID, org.IsAdmin, org.IsDeviceAdmin, org.IsGatewayAdmin); err != nil {
 				return err
 			}
 		}
