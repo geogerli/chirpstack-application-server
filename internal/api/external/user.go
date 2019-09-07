@@ -297,6 +297,8 @@ func (a *InternalUserAPI) Profile(ctx context.Context, req *empty.Empty) (*pb.Pr
 			OrganizationId:   org.ID,
 			OrganizationName: org.Name,
 			IsAdmin:          org.IsAdmin,
+			IsDeviceAdmin:    org.IsDeviceAdmin,
+			IsGatewayAdmin:   org.IsGatewayAdmin,
 		}
 
 		row.CreatedAt, err = ptypes.TimestampProto(org.CreatedAt)
