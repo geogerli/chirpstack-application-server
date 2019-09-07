@@ -62,7 +62,9 @@ class ListMulticastGroupDevices extends Component {
         <TableCellLink to={`/organizations/${this.props.match.params.organizationID}/applications/${obj.applicationID}/devices/${obj.devEUI}`}>{obj.name}</TableCellLink>
         <TableCell>{obj.devEUI}</TableCell>
         <TableCell className={this.props.classes.buttons}>
-          <IconButton onClick={this.onDelete.bind(this, obj.devEUI)}><Delete /></IconButton>
+          <DeviceAdmin organizationID={this.props.match.params.organizationID}>
+            <IconButton onClick={this.onDelete.bind(this, obj.devEUI)}><Delete /></IconButton>
+          </DeviceAdmin>
         </TableCell>
       </TableRow>
     );

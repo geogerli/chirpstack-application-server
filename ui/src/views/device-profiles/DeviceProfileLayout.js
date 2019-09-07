@@ -40,7 +40,7 @@ class DeviceProfileLayout extends Component {
 
   setIsAdmin() {
     this.setState({
-      admin: SessionStore.isAdmin() || SessionStore.isDeviceAdmin(this.props.match.params.organizationID),
+      admin: SessionStore.isAdmin() || SessionStore.isOrganizationDeviceAdmin(this.props.match.params.organizationID),
     });
   }
 
