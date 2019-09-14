@@ -16,6 +16,7 @@ import (
 	"github.com/brocaar/lora-app-server/internal/api/helpers"
 	"github.com/brocaar/lora-app-server/internal/backend/networkserver"
 	"github.com/brocaar/lora-app-server/internal/storage"
+	"github.com/brocaar/loraserver/api/common"
 	"github.com/brocaar/loraserver/api/ns"
 	"github.com/brocaar/lorawan"
 )
@@ -103,6 +104,9 @@ func (a *GatewayAPI) Create(ctx context.Context, req *pb.CreateGatewayRequest) (
 			OrganizationID:  req.Gateway.OrganizationId,
 			Ping:            req.Gateway.DiscoveryEnabled,
 			NetworkServerID: req.Gateway.NetworkServerId,
+			Latitude:        req.Gateway.Location.Latitude,
+			Longitude:       req.Gateway.Location.Longitude,
+			Altitude:        req.Gateway.Location.Altitude,
 		})
 		if err != nil {
 			return helpers.ErrToRPCError(err)
@@ -173,11 +177,13 @@ func (a *GatewayAPI) Get(ctx context.Context, req *pb.GetGatewayRequest) (*pb.Ge
 			Description:      gw.Description,
 			OrganizationId:   gw.OrganizationID,
 			DiscoveryEnabled: gw.Ping,
-			Location:         getResp.Gateway.Location,
-			NetworkServerId:  gw.NetworkServerID,
+			Location: &common.Location{
+				Latitude:  gw.Latitude,
+				Longitude: gw.Longitude,
+				Altitude:  gw.Altitude,
+			},
+			NetworkServerId: gw.NetworkServerID,
 		},
-		FirstSeenAt: getResp.FirstSeenAt,
-		LastSeenAt:  getResp.LastSeenAt,
 	}
 
 	resp.CreatedAt, err = ptypes.TimestampProto(gw.CreatedAt)
@@ -187,6 +193,20 @@ func (a *GatewayAPI) Get(ctx context.Context, req *pb.GetGatewayRequest) (*pb.Ge
 	resp.UpdatedAt, err = ptypes.TimestampProto(gw.UpdatedAt)
 	if err != nil {
 		return nil, helpers.ErrToRPCError(err)
+	}
+
+	if gw.FirstSeenAt != nil {
+		resp.FirstSeenAt, err = ptypes.TimestampProto(*gw.FirstSeenAt)
+		if err != nil {
+			return nil, helpers.ErrToRPCError(err)
+		}
+	}
+
+	if gw.LastSeenAt != nil {
+		resp.LastSeenAt, err = ptypes.TimestampProto(*gw.LastSeenAt)
+		if err != nil {
+			return nil, helpers.ErrToRPCError(err)
+		}
 	}
 
 	if len(getResp.Gateway.GatewayProfileId) != 0 {
@@ -328,6 +348,9 @@ func (a *GatewayAPI) Update(ctx context.Context, req *pb.UpdateGatewayRequest) (
 		gw.Name = req.Gateway.Name
 		gw.Description = req.Gateway.Description
 		gw.Ping = req.Gateway.DiscoveryEnabled
+		gw.Latitude = req.Gateway.Location.Latitude
+		gw.Longitude = req.Gateway.Location.Longitude
+		gw.Altitude = req.Gateway.Location.Altitude
 
 		err = storage.UpdateGateway(tx, &gw)
 		if err != nil {
