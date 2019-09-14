@@ -446,55 +446,48 @@ func (a *GatewayAPI) Delete(ctx context.Context, req *pb.DeleteGatewayRequest) (
 
 // GetStats gets the gateway statistics for the gateway with the given Mac.
 func (a *GatewayAPI) GetStats(ctx context.Context, req *pb.GetGatewayStatsRequest) (*pb.GetGatewayStatsResponse, error) {
-	var mac lorawan.EUI64
-	if err := mac.UnmarshalText([]byte(req.GatewayId)); err != nil {
+	var gatewayID lorawan.EUI64
+	if err := gatewayID.UnmarshalText([]byte(req.GatewayId)); err != nil {
 		return nil, grpc.Errorf(codes.InvalidArgument, "bad gateway mac: %s", err)
 	}
 
-	err := a.validator.Validate(ctx, auth.ValidateGatewayAccess(auth.Read, mac))
+	err := a.validator.Validate(ctx, auth.ValidateGatewayAccess(auth.Read, gatewayID))
 	if err != nil {
 		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
 	}
 
-	gw, err := storage.GetGateway(storage.DB(), mac, false)
+	start, err := ptypes.Timestamp(req.StartTimestamp)
 	if err != nil {
-		return nil, helpers.ErrToRPCError(err)
+		return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	n, err := storage.GetNetworkServer(storage.DB(), gw.NetworkServerID)
+	end, err := ptypes.Timestamp(req.EndTimestamp)
 	if err != nil {
-		return nil, helpers.ErrToRPCError(err)
+		return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
 	}
 
-	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
-	if err != nil {
-		return nil, helpers.ErrToRPCError(err)
-	}
-
-	interval, ok := ns.AggregationInterval_value[strings.ToUpper(req.Interval)]
+	_, ok := ns.AggregationInterval_value[strings.ToUpper(req.Interval)]
 	if !ok {
 		return nil, grpc.Errorf(codes.InvalidArgument, "bad interval: %s", req.Interval)
 	}
 
-	statsReq := ns.GetGatewayStatsRequest{
-		GatewayId:      mac[:],
-		Interval:       ns.AggregationInterval(interval),
-		StartTimestamp: req.StartTimestamp,
-		EndTimestamp:   req.EndTimestamp,
-	}
-	stats, err := nsClient.GetGatewayStats(ctx, &statsReq)
+	metrics, err := storage.GetMetrics(storage.RedisPool(), storage.AggregationInterval(strings.ToUpper(req.Interval)), "gw:"+gatewayID.String(), start, end)
 	if err != nil {
-		return nil, err
+		return nil, helpers.ErrToRPCError(err)
 	}
 
-	result := make([]*pb.GatewayStats, len(stats.Result))
-	for i, stat := range stats.Result {
+	result := make([]*pb.GatewayStats, len(metrics))
+	for i, m := range metrics {
 		result[i] = &pb.GatewayStats{
-			Timestamp:           stat.Timestamp,
-			RxPacketsReceived:   stat.RxPacketsReceived,
-			RxPacketsReceivedOk: stat.RxPacketsReceivedOk,
-			TxPacketsReceived:   stat.TxPacketsReceived,
-			TxPacketsEmitted:    stat.TxPacketsEmitted,
+			RxPacketsReceived:   int32(m.Metrics["rx_count"]),
+			RxPacketsReceivedOk: int32(m.Metrics["rx_ok_count"]),
+			TxPacketsReceived:   int32(m.Metrics["tx_count"]),
+			TxPacketsEmitted:    int32(m.Metrics["tx_ok_count"]),
+		}
+
+		result[i].Timestamp, err = ptypes.TimestampProto(m.Time)
+		if err != nil {
+			return nil, helpers.ErrToRPCError(err)
 		}
 	}
 
