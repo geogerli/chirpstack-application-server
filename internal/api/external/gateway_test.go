@@ -73,6 +73,7 @@ func (ts *APITestSuite) TestGateway() {
 		nsClient.GetGatewayResponse = ns.GetGatewayResponse{
 			Gateway: nsReq.Gateway,
 		}
+		assert.Equal(applicationServerID.Bytes(), nsReq.Gateway.RoutingProfileId)
 
 		t.Run("Get", func(t *testing.T) {
 			assert := require.New(t)

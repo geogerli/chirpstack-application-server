@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	uuid "github.com/gofrs/uuid"
 	"github.com/gomodule/redigo/redis"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
@@ -16,8 +17,9 @@ import (
 )
 
 var (
-	jwtsecret      []byte
-	HashIterations = 100000
+	jwtsecret           []byte
+	HashIterations      = 100000
+	applicationServerID uuid.UUID
 )
 
 // Setup configures the storage package.
@@ -26,6 +28,10 @@ func Setup(c config.Config) error {
 
 	jwtsecret = []byte(c.ApplicationServer.ExternalAPI.JWTSecret)
 	HashIterations = c.General.PasswordHashIterations
+
+	if err := applicationServerID.UnmarshalText([]byte(c.ApplicationServer.ID)); err != nil {
+		return errors.Wrap(err, "decode application_server.id error")
+	}
 
 	log.Info("storage: setup metrics")
 	// setup aggregation intervals

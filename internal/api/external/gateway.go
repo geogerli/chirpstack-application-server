@@ -61,8 +61,9 @@ func (a *GatewayAPI) Create(ctx context.Context, req *pb.CreateGatewayRequest) (
 
 	createReq := ns.CreateGatewayRequest{
 		Gateway: &ns.Gateway{
-			Id:       mac[:],
-			Location: req.Gateway.Location,
+			Id:               mac[:],
+			Location:         req.Gateway.Location,
+			RoutingProfileId: applicationServerID.Bytes(),
 		},
 	}
 
