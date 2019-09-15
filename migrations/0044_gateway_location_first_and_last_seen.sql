@@ -11,13 +11,7 @@ alter table gateway
     alter column longitude drop default,
     alter column altitude drop default;
 
-create index idx_gateway_latitude on gateway(latitude);
-create index idx_gateway_longitude on gateway(longitude);
-
 -- +migrate Down
-drop index idx_gateway_latitude;
-drop index idx_gateway_longitude;
-
 alter table gateway
     drop column first_seen_at,
     drop column last_seen_at,
