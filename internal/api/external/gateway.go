@@ -303,6 +303,11 @@ func (a *GatewayAPI) List(ctx context.Context, req *pb.ListGatewayRequest) (*pb.
 			Description:     gw.Description,
 			OrganizationId:  gw.OrganizationID,
 			NetworkServerId: gw.NetworkServerID,
+			Location: &common.Location{
+				Latitude:  gw.Latitude,
+				Longitude: gw.Longitude,
+				Altitude:  gw.Altitude,
+			},
 		}
 
 		row.CreatedAt, err = ptypes.TimestampProto(gw.CreatedAt)
@@ -312,6 +317,19 @@ func (a *GatewayAPI) List(ctx context.Context, req *pb.ListGatewayRequest) (*pb.
 		row.UpdatedAt, err = ptypes.TimestampProto(gw.UpdatedAt)
 		if err != nil {
 			return nil, helpers.ErrToRPCError(err)
+		}
+
+		if gw.FirstSeenAt != nil {
+			row.FirstSeenAt, err = ptypes.TimestampProto(*gw.FirstSeenAt)
+			if err != nil {
+				return nil, helpers.ErrToRPCError(err)
+			}
+		}
+		if gw.LastSeenAt != nil {
+			row.LastSeenAt, err = ptypes.TimestampProto(*gw.LastSeenAt)
+			if err != nil {
+				return nil, helpers.ErrToRPCError(err)
+			}
 		}
 
 		resp.Result = append(resp.Result, &row)
