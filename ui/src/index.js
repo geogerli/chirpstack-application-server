@@ -9,6 +9,7 @@ import App from "./App";
 import "leaflet/dist/leaflet.css";
 import "codemirror/lib/codemirror.css";
 import "codemirror/theme/base16-light.css";
+import "react-leaflet-markercluster/dist/styles.min.css";
 import "./index.css";
 
 Leaflet.Icon.Default.imagePath = "//cdnjs.cloudflare.com/ajax/libs/leaflet/1.0.0/images/"
