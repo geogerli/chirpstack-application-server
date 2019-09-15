@@ -15,6 +15,8 @@ import moment from "moment";
 import { Bar } from "react-chartjs-2";
 import { Map, Marker, Popup } from 'react-leaflet';
 import MarkerClusterGroup from "react-leaflet-markercluster";
+import L from "leaflet";
+import "leaflet.awesome-markers";
 
 import TitleBar from "../../components/TitleBar";
 import TitleBarTitle from "../../components/TitleBarTitle";
@@ -175,18 +177,51 @@ class ListGatewaysMap extends Component {
 
     let bounds = [];
     let markers = [];
+
+    const greenMarker = L.AwesomeMarkers.icon({
+      icon: "wifi",
+      prefix: "fa",
+      markerColor: "green",
+    });
+
+    const grayMarker = L.AwesomeMarkers.icon({
+      icon: "wifi",
+      prefix: "fa",
+      markerColor: "gray",
+    });
+
+    const redMarker = L.AwesomeMarkers.icon({
+      icon: "wifi",
+      prefix: "fa",
+      markerColor: "red",
+    });
     
     for (const item of this.state.items) {
       const position = [item.location.latitude, item.location.longitude];
 
       bounds.push(position);
-      console.log(item);
+
+      let marker = greenMarker;
+      let lastSeen = "";
+
+      if (item.lastSeenAt === undefined || item.lastSeenAt === null) {
+        marker = grayMarker;
+        lastSeen = "Never seen online";
+      } else {
+        const ts = moment(item.lastSeenAt);
+        if (ts.isBefore(moment().subtract(5, 'minutes'))) {
+          marker = redMarker;
+        }
+
+        lastSeen = ts.fromNow();
+      }
 
       markers.push(
-        <Marker position={position} key={`gw-${item.id}`}>
+        <Marker position={position} key={`gw-${item.id}`} icon={marker}>
           <Popup>
             <Link to={`/organizations/${this.props.organizationID}/gateways/${item.id}`}>{item.name}</Link><br />
-            {item.id}
+            {item.id}<br /><br />
+            {lastSeen}
           </Popup>
         </Marker>
       );
