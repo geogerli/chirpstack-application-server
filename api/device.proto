@@ -21,6 +21,14 @@ service DeviceService {
         };
     }
 
+    // Batch Create creates the given device.
+    rpc BatchCreate(BatchCreateDeviceRequest) returns (google.protobuf.Empty) {
+        option(google.api.http) = {
+            post: "/api/devices/batch"
+            body: "*"
+        };
+    }
+
     // Get returns the device matching the given DevEUI.
     rpc Get(GetDeviceRequest) returns (GetDeviceResponse) {
         option (google.api.http) = {
@@ -58,6 +66,14 @@ service DeviceService {
         };
     }
 
+    // BatchCreateKeys creates the given device-keys.
+    rpc BatchCreateKeys(BatchCreateDeviceKeysRequest) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/api/devices/keys/batch"
+            body: "*"
+        };
+    }
+
     // GetKeys returns the device-keys for the given DevEUI.
     rpc GetKeys(GetDeviceKeysRequest) returns (GetDeviceKeysResponse) {
         option (google.api.http) = {
@@ -84,6 +100,14 @@ service DeviceService {
     rpc Activate(ActivateDeviceRequest) returns (google.protobuf.Empty) {
         option (google.api.http) = {
             post: "/api/devices/{device_activation.dev_eui}/activate"
+            body: "*"
+        };
+    }
+
+    // batch Activate (re)activates the device (only when ABP is set to true).
+    rpc BatchActivate(BatchActivateDeviceRequest) returns (google.protobuf.Empty) {
+        option (google.api.http) = {
+            post: "/api/devices/activate/batch"
             body: "*"
         };
     }
@@ -236,6 +260,11 @@ message CreateDeviceRequest {
     Device device = 1;
 }
 
+message BatchCreateDeviceRequest {
+    // Device object to create.
+    repeated Device devices = 1;
+}
+
 message GetDeviceRequest {
     // Device EUI (HEX encoded).
     string dev_eui = 1 [json_name = "devEUI"];
@@ -314,6 +343,11 @@ message CreateDeviceKeysRequest {
     DeviceKeys device_keys = 1;
 }
 
+message BatchCreateDeviceKeysRequest {
+    // Device-keys object to create.
+    repeated DeviceKeys devices_keys = 1;
+}
+
 message GetDeviceKeysRequest {
     // Device EUI (HEX encoded).
     string dev_eui = 1 [json_name = "devEUI"];
@@ -365,6 +399,10 @@ message DeviceActivation {
 
 message ActivateDeviceRequest {
     DeviceActivation device_activation = 1;
+}
+
+message BatchActivateDeviceRequest {
+    repeated DeviceActivation devices_activation = 1;
 }
 
 message DeactivateDeviceRequest {

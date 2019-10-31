@@ -163,6 +163,123 @@ func CreateDevice(ctx context.Context, db sqlx.Ext, d *Device) error {
 	return nil
 }
 
+// CreateDevice creates the given device.
+func BatchCreateDevice(ctx context.Context, db *sqlx.DB, ds []*Device) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "Beginx error")
+	}
+	stmt, err := tx.Preparex(tx.Rebind(`
+        insert into device (
+            dev_eui,
+            created_at,
+            updated_at,
+            application_id,
+            device_profile_id,
+            name,
+			description,
+			device_status_battery,
+			device_status_margin,
+			device_status_external_power_source,
+			last_seen_at,
+			latitude,
+			longitude,
+			altitude,
+			dr,
+			variables,
+			tags
+        ) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`))
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "Preparex error")
+	}
+
+	dev := ds[0]
+	app, err := GetApplication(ctx, db, dev.ApplicationID)
+	if err != nil {
+		return errors.Wrap(err, "get application error")
+	}
+
+	var bcdr ns.BatchCreateDeviceRequest
+
+	for index,_ := range ds {
+		d := ds[index]
+		if err := d.Validate(); err != nil {
+			_ = stmt.Close()
+			_ = tx.Rollback()
+			return errors.Wrap(err, "validate error")
+		}
+		nd := ns.Device{
+				DevEui:            d.DevEUI[:],
+				DeviceProfileId:   d.DeviceProfileID.Bytes(),
+				ServiceProfileId:  app.ServiceProfileID.Bytes(),
+				RoutingProfileId:  applicationServerID.Bytes(),
+				SkipFCntCheck:     d.SkipFCntCheck,
+				ReferenceAltitude: d.ReferenceAltitude,
+			}
+		bcdr.Devices = append(bcdr.Devices,&nd)
+
+		now := time.Now()
+		d.CreatedAt = now
+		d.UpdatedAt = now
+		_,err := stmt.Exec(
+			d.DevEUI[:],
+			d.CreatedAt,
+			d.UpdatedAt,
+			d.ApplicationID,
+			d.DeviceProfileID,
+			d.Name,
+			d.Description,
+			d.DeviceStatusBattery,
+			d.DeviceStatusMargin,
+			d.DeviceStatusExternalPower,
+			d.LastSeenAt,
+			d.Latitude,
+			d.Longitude,
+			d.Altitude,
+			d.DR,
+			d.Variables,
+			d.Tags)
+		if err != nil {
+			_ = stmt.Close()
+			_ = tx.Rollback()
+			return errors.Wrap(err, "insert error")
+		}
+		log.WithFields(log.Fields{
+			"dev_eui": d.DevEUI,
+			"ctx_id":  ctx.Value(logging.ContextIDKey),
+		}).Info("device created")
+	}
+	err = stmt.Close()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "stmt close error")
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "tx commit error")
+	}
+
+	n, err := GetNetworkServerForDevEUI(ctx, db, dev.DevEUI)
+	if err != nil {
+		return errors.Wrap(err, "get network-server error")
+	}
+
+	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
+	if err != nil {
+		return errors.Wrap(err, "get network-server client error")
+	}
+
+	_, err = nsClient.BatchCreateDevice(ctx,&bcdr)
+	if err != nil {
+		return errors.Wrap(err, "create device error")
+	}
+
+	return nil
+}
+
 // GetDevice returns the device matching the given DevEUI.
 // When forUpdate is set to true, then db must be a db transaction.
 // When localOnly is set to true, no call to the network-server is made to
@@ -491,6 +608,66 @@ func CreateDeviceKeys(ctx context.Context, db sqlx.Execer, dc *DeviceKeys) error
 	return nil
 }
 
+// BatchCreateDeviceKeys creates the keys for the given device.
+func BatchCreateDeviceKeys(ctx context.Context, db *sqlx.DB, dcs []*DeviceKeys) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "Beginx error")
+	}
+	stmt, err := tx.Preparex(tx.Rebind(`
+        insert into device_keys (
+            created_at,
+            updated_at,
+            dev_eui,
+			nwk_key,
+			app_key,
+			join_nonce,
+			gen_app_key
+        ) values ($1, $2, $3, $4, $5, $6, $7)`))
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "Preparex error")
+	}
+
+	for index,_ := range dcs {
+		dc := dcs[index]
+		now := time.Now()
+		dc.CreatedAt = now
+		dc.UpdatedAt = now
+
+		_,err := stmt.Exec(
+			dc.CreatedAt,
+			dc.UpdatedAt,
+			dc.DevEUI[:],
+			dc.NwkKey[:],
+			dc.AppKey[:],
+			dc.JoinNonce,
+			dc.GenAppKey[:])
+		if err != nil {
+			_ = stmt.Close()
+			_ = tx.Rollback()
+			return errors.Wrap(err, "insert error")
+		}
+		log.WithFields(log.Fields{
+			"dev_eui": dc.DevEUI,
+			"ctx_id":  ctx.Value(logging.ContextIDKey),
+		}).Info("device created")
+	}
+	err = stmt.Close()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "stmt close error")
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "tx commit error")
+	}
+
+	return nil
+}
+
 // GetDeviceKeys returns the device-keys for the given DevEUI.
 func GetDeviceKeys(ctx context.Context, db sqlx.Queryer, devEUI lorawan.EUI64) (DeviceKeys, error) {
 	var dc DeviceKeys
@@ -591,6 +768,58 @@ func CreateDeviceActivation(ctx context.Context, db sqlx.Queryer, da *DeviceActi
 		"dev_eui": da.DevEUI,
 		"ctx_id":  ctx.Value(logging.ContextIDKey),
 	}).Info("device-activation created")
+
+	return nil
+}
+
+// BatchCreateDeviceActivation creates the given device-activation.
+func BatchCreateDeviceActivation(ctx context.Context, db *sqlx.DB, das []*DeviceActivation) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "Beginx error")
+	}
+	stmt, err := tx.Preparex(tx.Rebind(`
+        insert into device_activation (
+            created_at,
+            dev_eui,
+            dev_addr,
+			app_s_key
+        ) values ($1, $2, $3, $4)
+        returning id`))
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "Preparex error")
+	}
+
+	for index,_ := range das {
+		da := das[index]
+		da.CreatedAt = time.Now()
+		_,err := stmt.Exec(
+			da.CreatedAt,
+			da.DevEUI[:],
+			da.DevAddr[:],
+			da.AppSKey[:])
+		if err != nil {
+			_ = stmt.Close()
+			_ = tx.Rollback()
+			return errors.Wrap(err, "insert error")
+		}
+		log.WithFields(log.Fields{
+			"dev_eui": da.DevEUI,
+			"ctx_id":  ctx.Value(logging.ContextIDKey),
+		}).Info("device-activation created")
+	}
+	err = stmt.Close()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "stmt close error")
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "tx commit error")
+	}
 
 	return nil
 }
