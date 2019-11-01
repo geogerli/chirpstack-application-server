@@ -103,6 +103,66 @@ func (a *DeviceAPI) Create(ctx context.Context, req *pb.CreateDeviceRequest) (*e
 	return &empty.Empty{}, nil
 }
 
+// Batch create creates the given device.
+func (a *DeviceAPI) BatchCreate(ctx context.Context, req *pb.BatchCreateDeviceRequest) (*empty.Empty, error) {
+	if req.Devices == nil || len(req.Devices) <= 0 {
+		return nil, grpc.Errorf(codes.InvalidArgument, "batch devices must not be nil")
+	}
+	var ds []*storage.Device
+	dev := req.Devices[0]
+	if err := a.validator.Validate(ctx,
+		auth.ValidateNodesAccess(dev.ApplicationId, auth.Create)); err != nil {
+		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
+	}
+	for index,_ := range req.Devices {
+		device := req.Devices[index]
+		var devEUI lorawan.EUI64
+		if err := devEUI.UnmarshalText([]byte(device.DevEui)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
+		}
+
+		dpID, err := uuid.FromString(device.DeviceProfileId)
+		if err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
+		}
+
+		// if Name is "", set it to the DevEUI
+		if device.Name == "" {
+			device.Name = device.DevEui
+		}
+
+		d := storage.Device{
+			DevEUI:            devEUI,
+			ApplicationID:     device.ApplicationId,
+			DeviceProfileID:   dpID,
+			Name:              device.Name,
+			Description:       device.Description,
+			SkipFCntCheck:     device.SkipFCntCheck,
+			ReferenceAltitude: device.ReferenceAltitude,
+			Variables: hstore.Hstore{
+				Map: make(map[string]sql.NullString),
+			},
+			Tags: hstore.Hstore{
+				Map: make(map[string]sql.NullString),
+			},
+		}
+
+		for k, v := range device.Variables {
+			d.Variables.Map[k] = sql.NullString{String: v, Valid: true}
+		}
+
+		for k, v := range device.Tags {
+			d.Tags.Map[k] = sql.NullString{String: v, Valid: true}
+		}
+		ds = append(ds,&d)
+	}
+	err := storage.BatchCreateDevice(ctx,storage.DB().DB,ds)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+	return &empty.Empty{}, nil
+}
+
 // Get returns the device matching the given DevEUI.
 func (a *DeviceAPI) Get(ctx context.Context, req *pb.GetDeviceRequest) (*pb.GetDeviceResponse, error) {
 	var eui lorawan.EUI64
@@ -417,6 +477,67 @@ func (a *DeviceAPI) CreateKeys(ctx context.Context, req *pb.CreateDeviceKeysRequ
 	return &empty.Empty{}, nil
 }
 
+// Batch createKeys creates the given device-keys.
+func (a *DeviceAPI) BatchCreateKeys(ctx context.Context, req *pb.BatchCreateDeviceKeysRequest) (*empty.Empty, error) {
+	if req.DevicesKeys == nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "batch devices_keys must not be nil")
+	}
+
+	var dcs []*storage.DeviceKeys
+	for index,_ := range req.DevicesKeys {
+		deviceKeys := req.DevicesKeys[index]
+
+		// appKey is not used for LoRaWAN 1.0
+		var appKey lorawan.AES128Key
+		if deviceKeys.AppKey != "" {
+			if err := appKey.UnmarshalText([]byte(deviceKeys.AppKey)); err != nil {
+				return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
+			}
+		}
+
+		// genAppKey is only for LoRaWAN 1.0 devices that implement the
+		// remote multicast setup specification.
+		var genAppKey lorawan.AES128Key
+		if deviceKeys.GenAppKey != "" {
+			if err := genAppKey.UnmarshalText([]byte(deviceKeys.GenAppKey)); err != nil {
+				return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
+			}
+		}
+
+		// nwkKey
+		var nwkKey lorawan.AES128Key
+		if err := nwkKey.UnmarshalText([]byte(deviceKeys.NwkKey)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
+		}
+
+		// devEUI
+		var eui lorawan.EUI64
+		if err := eui.UnmarshalText([]byte(deviceKeys.DevEui)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
+		}
+
+		//if err := a.validator.Validate(ctx,
+		//	auth.ValidateNodeAccess(eui, auth.Update),
+		//); err != nil {
+		//	return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
+		//}
+
+		dc := storage.DeviceKeys{
+			DevEUI:    eui,
+			NwkKey:    nwkKey,
+			AppKey:    appKey,
+			GenAppKey: genAppKey,
+		}
+
+		dcs = append(dcs,&dc)
+	}
+	err := storage.BatchCreateDeviceKeys(ctx, storage.DB().DB, dcs)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+	return &empty.Empty{}, nil
+}
+
 // GetKeys returns the device-keys for the given DevEUI.
 func (a *DeviceAPI) GetKeys(ctx context.Context, req *pb.GetDeviceKeysRequest) (*pb.GetDeviceKeysResponse, error) {
 	var eui lorawan.EUI64
@@ -652,6 +773,118 @@ func (a *DeviceAPI) Activate(ctx context.Context, req *pb.ActivateDeviceRequest)
 		"dev_eui":  d.DevEUI,
 		"ctx_id":   ctx.Value(logging.ContextIDKey),
 	}).Info("device activated")
+
+	return &empty.Empty{}, nil
+}
+
+
+// Batch activate activates the node (ABP only).
+func (a *DeviceAPI) BatchActivate(ctx context.Context, req *pb.BatchActivateDeviceRequest) (*empty.Empty, error) {
+	if req.DevicesActivation == nil || len(req.DevicesActivation) <= 0{
+		return nil, grpc.Errorf(codes.InvalidArgument, "batch device_activation must not be nil")
+	}
+	da := req.DevicesActivation[0]
+	var dev lorawan.EUI64
+	if err := dev.UnmarshalText([]byte(da.DevEui)); err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "devEUI: %s", err)
+	}
+	d, err := storage.GetDevice(ctx, storage.DB(), dev, false, true)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+
+	dp, err := storage.GetDeviceProfile(ctx, storage.DB(), d.DeviceProfileID, false, false)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+
+	if dp.DeviceProfile.SupportsJoin {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "node must be an ABP node")
+	}
+
+	n, err := storage.GetNetworkServerForDevEUI(ctx, storage.DB(), dev)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+	var badr ns.BatchActivateDeviceRequest
+	var devsEui [][]byte
+	var sda []*storage.DeviceActivation
+	for index,_ := range req.DevicesActivation {
+		deviceActivation := req.DevicesActivation[index]
+		var devAddr lorawan.DevAddr
+		var devEUI lorawan.EUI64
+		var appSKey lorawan.AES128Key
+		var nwkSEncKey lorawan.AES128Key
+		var sNwkSIntKey lorawan.AES128Key
+		var fNwkSIntKey lorawan.AES128Key
+
+		if err := devAddr.UnmarshalText([]byte(deviceActivation.DevAddr)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "devAddr: %s", err)
+		}
+		if err := devEUI.UnmarshalText([]byte(deviceActivation.DevEui)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "devEUI: %s", err)
+		}
+		if err := appSKey.UnmarshalText([]byte(deviceActivation.AppSKey)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "appSKey: %s", err)
+		}
+		if err := nwkSEncKey.UnmarshalText([]byte(deviceActivation.NwkSEncKey)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "nwkSEncKey: %s", err)
+		}
+		if err := sNwkSIntKey.UnmarshalText([]byte(deviceActivation.SNwkSIntKey)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "sNwkSIntKey: %s", err)
+		}
+		if err := fNwkSIntKey.UnmarshalText([]byte(deviceActivation.FNwkSIntKey)); err != nil {
+			return nil, grpc.Errorf(codes.InvalidArgument, "fNwkSIntKey: %s", err)
+		}
+
+		//if err := a.validator.Validate(ctx,
+		//	auth.ValidateNodeAccess(devEUI, auth.Update)); err != nil {
+		//	return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
+		//}
+
+		da := ns.DeviceActivation{
+				DevEui:      devEUI[:],
+				DevAddr:     devAddr[:],
+				NwkSEncKey:  nwkSEncKey[:],
+				SNwkSIntKey: sNwkSIntKey[:],
+				FNwkSIntKey: fNwkSIntKey[:],
+				FCntUp:      deviceActivation.FCntUp,
+				NFCntDown:   deviceActivation.NFCntDown,
+				AFCntDown:   deviceActivation.AFCntDown,
+			}
+		dan := storage.DeviceActivation{
+			DevEUI:  devEUI,
+			DevAddr: devAddr,
+			AppSKey: appSKey,
+		}
+		badr.DevicesActivation = append(badr.DevicesActivation,&da)
+		sda = append(sda,&dan)
+		devsEui = append(devsEui,devEUI[:])
+
+
+		log.WithFields(log.Fields{
+			"dev_addr": devAddr,
+			"dev_eui":  devEUI,
+			"ctx_id":   ctx.Value(logging.ContextIDKey),
+		}).Info("device activated")
+	}
+
+	nsClient, err := networkserver.GetPool().Get(n.Server, []byte(n.CACert), []byte(n.TLSCert), []byte(n.TLSKey))
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+
+	_, _ = nsClient.BatchDeactivateDevice(ctx, &ns.BatchDeactivateDeviceRequest{DevsEui: devsEui})
+
+	_, err = nsClient.BatchActivateDevice(ctx, &badr)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+
+	err = storage.BatchCreateDeviceActivation(ctx, storage.DB().DB, sda)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
 
 	return &empty.Empty{}, nil
 }
