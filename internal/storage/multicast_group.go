@@ -408,7 +408,8 @@ func BatchAddDeviceToMulticastGroup(ctx context.Context, db *sqlx.DB, multicastG
 	}
 	var badtmgr ns.BatchAddDeviceToMulticastGroupRequest
 	badtmgr.MulticastGroupId = multicastGroupID.Bytes()
-	for _,devEUI := range devEUIs {
+	for index,_ := range devEUIs {
+		devEUI := devEUIs[index]
 		badtmgr.DevEuis = append(badtmgr.DevEuis,devEUI[:])
 		_,err := stmt.Exec(devEUI, multicastGroupID, time.Now(),time.Now())
 		if err != nil {

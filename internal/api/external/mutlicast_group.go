@@ -406,7 +406,7 @@ func (a *MulticastGroupAPI) BatchAddDevice(ctx context.Context, req *pb.BatchAdd
 		}
 	}
 	var devEUIs []lorawan.EUI64
-	deviceSet := make(map[lorawan.EUI64]bool)
+	deviceMap := make(map[lorawan.EUI64]bool)
 	if req.DevEuis != nil && len(req.DevEuis) > 0 {
 		for _,DevEui := range req.DevEuis{
 			var devEUI lorawan.EUI64
@@ -414,20 +414,23 @@ func (a *MulticastGroupAPI) BatchAddDevice(ctx context.Context, req *pb.BatchAdd
 				return nil, grpc.Errorf(codes.InvalidArgument, "dev_eui: %s", err)
 			}
 			devEUIs = append(devEUIs, devEUI)
-			deviceSet[devEUI] = true
+			if req.AllCheck {deviceMap[devEUI] = true}
 		}
 	}
-	devices, err := storage.GetDevices(ctx, storage.DB(), filters)
 	if req.AllCheck {
+		devices, err := storage.GetDevices(ctx, storage.DB(), filters)
+		if err != nil {
+			return nil, helpers.ErrToRPCError(err)
+		}
+		devEUIs = devEUIs[0:0]
 		for _,device := range devices {
-			if !deviceSet[device.DevEUI] {
-				devEUIs = append(devEUIs, device.DevEUI)
+			if _, ok := deviceMap[device.DevEUI]; ok {
+				continue
 			}
+			devEUIs = append(devEUIs, device.DevEUI)
 		}
 	}
-	if err != nil {
-		return nil, helpers.ErrToRPCError(err)
-	}
+
 	mgID, err := uuid.FromString(req.MulticastGroupId)
 	if err != nil {
 		return nil, grpc.Errorf(codes.InvalidArgument, "multicast_group_id: %s", err)
