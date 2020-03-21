@@ -371,6 +371,87 @@ func (a *MulticastGroupAPI) AddDevice(ctx context.Context, req *pb.AddDeviceToMu
 
 	return &empty.Empty{}, nil
 }
+// BatchAddDevice adds the given device to the multicast-group.
+func (a *MulticastGroupAPI) BatchAddDevice(ctx context.Context, req *pb.BatchAddDeviceToMulticastGroupRequest) (*empty.Empty, error) {
+	var err error
+	var idFilter bool
+	filters := storage.DeviceFilters{
+		Limit: 999999, // it is bug
+		Offset: 0,
+	}
+	if req.ServiceProfileId != "" {
+		filters.ServiceProfileID, err = uuid.FromString(req.ServiceProfileId)
+		if err != nil {
+			return nil, helpers.ErrToRPCError(err)
+		}
+	}
+	if filters.ServiceProfileID != uuid.Nil {
+		idFilter = true
+		// validate that the client has access to the given service-profile
+		if err := a.validator.Validate(ctx,
+			auth.ValidateServiceProfileAccess(auth.Read, filters.ServiceProfileID),
+		); err != nil {
+			return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
+		}
+	}
+
+	if !idFilter {
+		isAdmin, err := a.validator.GetIsAdmin(ctx)
+		if err != nil {
+			return nil, helpers.ErrToRPCError(err)
+		}
+
+		if !isAdmin {
+			return nil, grpc.Errorf(codes.Unauthenticated, "client must be global admin for unfiltered request")
+		}
+	}
+	var devEUIs []lorawan.EUI64
+	deviceSet := make(map[lorawan.EUI64]bool)
+	if req.DevEuis != nil && len(req.DevEuis) > 0 {
+		for _,DevEui := range req.DevEuis{
+			var devEUI lorawan.EUI64
+			if err = devEUI.UnmarshalText([]byte(DevEui)); err != nil {
+				return nil, grpc.Errorf(codes.InvalidArgument, "dev_eui: %s", err)
+			}
+			devEUIs = append(devEUIs, devEUI)
+			deviceSet[devEUI] = true
+		}
+	}
+	devices, err := storage.GetDevices(ctx, storage.DB(), filters)
+	if req.AllCheck {
+		for _,device := range devices {
+			if !deviceSet[device.DevEUI] {
+				devEUIs = append(devEUIs, device.DevEUI)
+			}
+		}
+	}
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+	mgID, err := uuid.FromString(req.MulticastGroupId)
+	if err != nil {
+		return nil, grpc.Errorf(codes.InvalidArgument, "multicast_group_id: %s", err)
+	}
+
+	if err = a.validator.Validate(ctx,
+		auth.ValidateMulticastGroupAccess(auth.Update, mgID)); err != nil {
+		return nil, grpc.Errorf(codes.Unauthenticated, "authentication failed: %s", err)
+	}
+
+	mg, err := storage.GetMulticastGroup(ctx, storage.DB(), mgID, false, true)
+	if err != nil {
+		return nil, helpers.ErrToRPCError(err)
+	}
+	var ServiceProfileID uuid.UUID
+	if err:=ServiceProfileID.UnmarshalText([]byte(req.ServiceProfileId));err!= nil || ServiceProfileID != mg.ServiceProfileID {
+		return nil, grpc.Errorf(codes.FailedPrecondition, "service-profile of device != service-profile of multicast-group")
+	}
+
+	if err := storage.BatchAddDeviceToMulticastGroup(ctx, storage.DB().DB, mgID, devEUIs); err != nil {
+		return nil,helpers.ErrToRPCError(err)
+	}
+	return &empty.Empty{}, nil
+}
 
 // RemoveDevice removes the given device from the multicast-group.
 func (a *MulticastGroupAPI) RemoveDevice(ctx context.Context, req *pb.RemoveDeviceFromMulticastGroupRequest) (*empty.Empty, error) {

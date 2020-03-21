@@ -53,6 +53,14 @@ service MulticastGroupService {
         };
     }
 
+    // BatchAddDevice batch adds the given device to the multicast-group.
+    rpc BatchAddDevice(BatchAddDeviceToMulticastGroupRequest) returns (google.protobuf.Empty) {
+        option(google.api.http) = {
+            post: "/api/multicast-groups/{multicast_group_id}/devices/batch"
+            body: "*"
+        };
+    }
+
     // RemoveDevice removes the given device from the multicast-group.
     rpc RemoveDevice(RemoveDeviceFromMulticastGroupRequest) returns (google.protobuf.Empty) {
         option(google.api.http) = {
@@ -187,6 +195,14 @@ message AddDeviceToMulticastGroupRequest {
     // Note that the device must be under the same service-profile as the
     // multicast-group.
     string dev_eui = 2 [json_name = "devEUI"];
+}
+
+message BatchAddDeviceToMulticastGroupRequest {
+    // Multicast-group ID (string formatted UUID).
+    string multicast_group_id = 1 [json_name = "multicastGroupID"];
+    repeated string dev_euis = 2 [json_name = "devEUIs"];
+    string service_profile_id = 3 [json_name = "serviceProfileID"];
+    bool all_check = 4  [json_name = "allCheck"];
 }
 
 message RemoveDeviceFromMulticastGroupRequest {

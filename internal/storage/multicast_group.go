@@ -389,6 +389,60 @@ func AddDeviceToMulticastGroup(ctx context.Context, db sqlx.Ext, multicastGroupI
 	return nil
 }
 
+// BatchAddDeviceToMulticastGroup adds the given device to the given multicast-group.
+// It is recommended that db is a transaction.
+func BatchAddDeviceToMulticastGroup(ctx context.Context, db *sqlx.DB, multicastGroupID uuid.UUID, devEUIs []lorawan.EUI64) error {
+	tx, err := db.Beginx()
+	if err != nil {
+		return errors.Wrap(err, "Beginx error")
+	}
+	stmt, err := tx.Preparex(tx.Rebind(`
+        insert into device_multicast_group (
+			dev_eui,
+			multicast_group_id,
+			created_at
+		) values ($1, $2, $3) on conflict(dev_eui,multicast_group_id) do update set created_at = $4`))
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "Preparex error")
+	}
+	var badtmgr ns.BatchAddDeviceToMulticastGroupRequest
+	badtmgr.MulticastGroupId = multicastGroupID.Bytes()
+	for _,devEUI := range devEUIs {
+		badtmgr.DevEuis = append(badtmgr.DevEuis,devEUI[:])
+		_,err := stmt.Exec(devEUI, multicastGroupID, time.Now(),time.Now())
+		if err != nil {
+			_ = stmt.Close()
+			_ = tx.Rollback()
+			return handlePSQLError(Insert, err, "insert or update error")
+		}
+		log.WithFields(log.Fields{
+			"dev_eui":            devEUI,
+			"multicast_group_id": multicastGroupID,
+			"ctx_id":             ctx.Value(logging.ContextIDKey),
+		}).Info("device added to multicast-group")
+	}
+	err = stmt.Close()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "stmt close error")
+	}
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return errors.Wrap(err, "tx commit error")
+	}
+	nsClient, err := getNSClientForMulticastGroup(ctx, db, multicastGroupID)
+	if err != nil {
+		return errors.Wrap(err, "get network-server client error")
+	}
+	_, err = nsClient.BatchAddDeviceToMulticastGroup(ctx, &badtmgr)
+	if err != nil {
+		return errors.Wrap(err, "add device to multicast-group error")
+	}
+	return nil
+}
+
 // RemoveDeviceFromMulticastGroup removes the given device from the given
 // multicast-group.
 func RemoveDeviceFromMulticastGroup(ctx context.Context, db sqlx.Ext, multicastGroupID uuid.UUID, devEUI lorawan.EUI64) error {

@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/golang/protobuf/descriptor"
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/grpc-ecosystem/grpc-gateway/utilities"
@@ -22,11 +23,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Suppress "imported and not used" errors
 var _ codes.Code
 var _ io.Reader
 var _ status.Status
 var _ = runtime.String
 var _ = utilities.NewDoubleArray
+var _ = descriptor.ForMessage
 
 func request_MulticastGroupService_Create_0(ctx context.Context, marshaler runtime.Marshaler, client MulticastGroupServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq CreateMulticastGroupRequest
@@ -41,6 +44,23 @@ func request_MulticastGroupService_Create_0(ctx context.Context, marshaler runti
 	}
 
 	msg, err := client.Create(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MulticastGroupService_Create_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq CreateMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.Create(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -68,6 +88,33 @@ func request_MulticastGroupService_Get_0(ctx context.Context, marshaler runtime.
 	}
 
 	msg, err := client.Get(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MulticastGroupService_Get_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq GetMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+
+	protoReq.Id, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
+	}
+
+	msg, err := server.Get(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -107,6 +154,41 @@ func request_MulticastGroupService_Update_0(ctx context.Context, marshaler runti
 
 }
 
+func local_request_MulticastGroupService_Update_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq UpdateMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_group.id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_group.id")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "multicast_group.id", val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_group.id", err)
+	}
+
+	msg, err := server.Update(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 func request_MulticastGroupService_Delete_0(ctx context.Context, marshaler runtime.Marshaler, client MulticastGroupServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq DeleteMulticastGroupRequest
 	var metadata runtime.ServerMetadata
@@ -134,6 +216,33 @@ func request_MulticastGroupService_Delete_0(ctx context.Context, marshaler runti
 
 }
 
+func local_request_MulticastGroupService_Delete_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq DeleteMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "id")
+	}
+
+	protoReq.Id, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "id", err)
+	}
+
+	msg, err := server.Delete(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 var (
 	filter_MulticastGroupService_List_0 = &utilities.DoubleArray{Encoding: map[string]int{}, Base: []int(nil), Check: []int(nil)}
 )
@@ -142,11 +251,27 @@ func request_MulticastGroupService_List_0(ctx context.Context, marshaler runtime
 	var protoReq ListMulticastGroupRequest
 	var metadata runtime.ServerMetadata
 
-	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MulticastGroupService_List_0); err != nil {
+	if err := req.ParseForm(); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_MulticastGroupService_List_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
 	msg, err := client.List(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MulticastGroupService_List_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ListMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	if err := runtime.PopulateQueryParameters(&protoReq, req.URL.Query(), filter_MulticastGroupService_List_0); err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	msg, err := server.List(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -182,6 +307,111 @@ func request_MulticastGroupService_AddDevice_0(ctx context.Context, marshaler ru
 	}
 
 	msg, err := client.AddDevice(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MulticastGroupService_AddDevice_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq AddDeviceToMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_group_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_group_id")
+	}
+
+	protoReq.MulticastGroupId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_group_id", err)
+	}
+
+	msg, err := server.AddDevice(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
+func request_MulticastGroupService_BatchAddDevice_0(ctx context.Context, marshaler runtime.Marshaler, client MulticastGroupServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq BatchAddDeviceToMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_group_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_group_id")
+	}
+
+	protoReq.MulticastGroupId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_group_id", err)
+	}
+
+	msg, err := client.BatchAddDevice(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MulticastGroupService_BatchAddDevice_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq BatchAddDeviceToMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_group_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_group_id")
+	}
+
+	protoReq.MulticastGroupId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_group_id", err)
+	}
+
+	msg, err := server.BatchAddDevice(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -224,6 +454,44 @@ func request_MulticastGroupService_RemoveDevice_0(ctx context.Context, marshaler
 
 }
 
+func local_request_MulticastGroupService_RemoveDevice_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq RemoveDeviceFromMulticastGroupRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_group_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_group_id")
+	}
+
+	protoReq.MulticastGroupId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_group_id", err)
+	}
+
+	val, ok = pathParams["dev_eui"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "dev_eui")
+	}
+
+	protoReq.DevEui, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "dev_eui", err)
+	}
+
+	msg, err := server.RemoveDevice(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 func request_MulticastGroupService_Enqueue_0(ctx context.Context, marshaler runtime.Marshaler, client MulticastGroupServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq EnqueueMulticastQueueItemRequest
 	var metadata runtime.ServerMetadata
@@ -259,6 +527,41 @@ func request_MulticastGroupService_Enqueue_0(ctx context.Context, marshaler runt
 
 }
 
+func local_request_MulticastGroupService_Enqueue_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq EnqueueMulticastQueueItemRequest
+	var metadata runtime.ServerMetadata
+
+	newReader, berr := utilities.IOReaderFactory(req.Body)
+	if berr != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", berr)
+	}
+	if err := marshaler.NewDecoder(newReader()).Decode(&protoReq); err != nil && err != io.EOF {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
+	}
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_queue_item.multicast_group_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_queue_item.multicast_group_id")
+	}
+
+	err = runtime.PopulateFieldFromPath(&protoReq, "multicast_queue_item.multicast_group_id", val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_queue_item.multicast_group_id", err)
+	}
+
+	msg, err := server.Enqueue(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 func request_MulticastGroupService_FlushQueue_0(ctx context.Context, marshaler runtime.Marshaler, client MulticastGroupServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq FlushMulticastGroupQueueItemsRequest
 	var metadata runtime.ServerMetadata
@@ -286,6 +589,33 @@ func request_MulticastGroupService_FlushQueue_0(ctx context.Context, marshaler r
 
 }
 
+func local_request_MulticastGroupService_FlushQueue_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq FlushMulticastGroupQueueItemsRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_group_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_group_id")
+	}
+
+	protoReq.MulticastGroupId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_group_id", err)
+	}
+
+	msg, err := server.FlushQueue(ctx, &protoReq)
+	return msg, metadata, err
+
+}
+
 func request_MulticastGroupService_ListQueue_0(ctx context.Context, marshaler runtime.Marshaler, client MulticastGroupServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
 	var protoReq ListMulticastGroupQueueItemsRequest
 	var metadata runtime.ServerMetadata
@@ -309,6 +639,33 @@ func request_MulticastGroupService_ListQueue_0(ctx context.Context, marshaler ru
 	}
 
 	msg, err := client.ListQueue(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	return msg, metadata, err
+
+}
+
+func local_request_MulticastGroupService_ListQueue_0(ctx context.Context, marshaler runtime.Marshaler, server MulticastGroupServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq ListMulticastGroupQueueItemsRequest
+	var metadata runtime.ServerMetadata
+
+	var (
+		val string
+		ok  bool
+		err error
+		_   = err
+	)
+
+	val, ok = pathParams["multicast_group_id"]
+	if !ok {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "missing parameter %s", "multicast_group_id")
+	}
+
+	protoReq.MulticastGroupId, err = runtime.String(val)
+
+	if err != nil {
+		return nil, metadata, status.Errorf(codes.InvalidArgument, "type mismatch, parameter: %s, error: %v", "multicast_group_id", err)
+	}
+
+	msg, err := server.ListQueue(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -471,6 +828,26 @@ func RegisterMulticastGroupServiceHandlerClient(ctx context.Context, mux *runtim
 
 	})
 
+	mux.Handle("POST", pattern_MulticastGroupService_BatchAddDevice_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+		ctx, cancel := context.WithCancel(req.Context())
+		defer cancel()
+		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
+		rctx, err := runtime.AnnotateContext(ctx, mux, req)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+		resp, md, err := request_MulticastGroupService_BatchAddDevice_0(rctx, inboundMarshaler, client, req, pathParams)
+		ctx = runtime.NewServerMetadataContext(ctx, md)
+		if err != nil {
+			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
+			return
+		}
+
+		forward_MulticastGroupService_BatchAddDevice_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+
+	})
+
 	mux.Handle("DELETE", pattern_MulticastGroupService_RemoveDevice_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
@@ -555,25 +932,27 @@ func RegisterMulticastGroupServiceHandlerClient(ctx context.Context, mux *runtim
 }
 
 var (
-	pattern_MulticastGroupService_Create_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "multicast-groups"}, ""))
+	pattern_MulticastGroupService_Create_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "multicast-groups"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"api", "multicast-groups", "id"}, ""))
+	pattern_MulticastGroupService_Get_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"api", "multicast-groups", "id"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_Update_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"api", "multicast-groups", "multicast_group.id"}, ""))
+	pattern_MulticastGroupService_Update_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"api", "multicast-groups", "multicast_group.id"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_Delete_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"api", "multicast-groups", "id"}, ""))
+	pattern_MulticastGroupService_Delete_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2}, []string{"api", "multicast-groups", "id"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_List_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "multicast-groups"}, ""))
+	pattern_MulticastGroupService_List_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1}, []string{"api", "multicast-groups"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_AddDevice_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_group_id", "devices"}, ""))
+	pattern_MulticastGroupService_AddDevice_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_group_id", "devices"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_RemoveDevice_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "multicast-groups", "multicast_group_id", "devices", "dev_eui"}, ""))
+	pattern_MulticastGroupService_BatchAddDevice_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 2, 4}, []string{"api", "multicast-groups", "multicast_group_id", "devices", "batch"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_Enqueue_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_queue_item.multicast_group_id", "queue"}, ""))
+	pattern_MulticastGroupService_RemoveDevice_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3, 1, 0, 4, 1, 5, 4}, []string{"api", "multicast-groups", "multicast_group_id", "devices", "dev_eui"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_FlushQueue_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_group_id", "queue"}, ""))
+	pattern_MulticastGroupService_Enqueue_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_queue_item.multicast_group_id", "queue"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_MulticastGroupService_ListQueue_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_group_id", "queue"}, ""))
+	pattern_MulticastGroupService_FlushQueue_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_group_id", "queue"}, "", runtime.AssumeColonVerbOpt(true)))
+
+	pattern_MulticastGroupService_ListQueue_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 1, 0, 4, 1, 5, 2, 2, 3}, []string{"api", "multicast-groups", "multicast_group_id", "queue"}, "", runtime.AssumeColonVerbOpt(true)))
 )
 
 var (
@@ -588,6 +967,8 @@ var (
 	forward_MulticastGroupService_List_0 = runtime.ForwardResponseMessage
 
 	forward_MulticastGroupService_AddDevice_0 = runtime.ForwardResponseMessage
+
+	forward_MulticastGroupService_BatchAddDevice_0 = runtime.ForwardResponseMessage
 
 	forward_MulticastGroupService_RemoveDevice_0 = runtime.ForwardResponseMessage
 
